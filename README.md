@@ -3,6 +3,68 @@
 ## Overview
 A distributed Elixir application that simulates multi-domain price divergence and autonomous price syncronization. Each node runs a price server that randomly updates its price value. When prices between nodes diverge beyond a defined threshold, they are automatically reset to maintain consistency.
 
+## System Architecture
+
+```mermaid
+graph TD
+    %% Define the three nodes in a triangle
+    subgraph "Node A"
+        direction TB
+        A[PriceServer]
+        AM[Monitor]
+    end
+
+    subgraph "Node B"
+        direction TB
+        B[PriceServer]
+        BM[Monitor]
+    end
+
+    subgraph "Node C"
+        direction TB
+        C[PriceServer]
+        CM[Monitor]
+    end
+
+    %% Define the central lock
+    Lock((Distributed Lock))
+
+    %% Price update loops
+    A ==>|"1. Random update\nevery 1s"| A
+    B ==>|"1. Random update\nevery 1s"| B
+    C ==>|"1. Random update\nevery 1s"| C
+
+    %% Price monitoring between nodes
+    AM -->|"2. Check prices\nevery 2s"| B
+    AM -->|"2. Check prices\nevery 2s"| C
+    BM -->|"2. Check prices\nevery 2s"| A
+    BM -->|"2. Check prices\nevery 2s"| C
+    CM -->|"2. Check prices\nevery 2s"| A
+    CM -->|"2. Check prices\nevery 2s"| B
+
+    %% Lock and reset flow
+    AM -.-|"3. If divergence > 2.0"| Lock
+    BM -.-|"3. If divergence > 2.0"| Lock
+    CM -.-|"3. If divergence > 2.0"| Lock
+    Lock ==>|"4. Reset prices\n(5s timeout)"| A & B & C
+
+    %% Styling
+    classDef server fill:#e1f5fe,stroke:#01579b
+    classDef monitor fill:#f3e5f5,stroke:#4a148c
+    classDef lock fill:#fff3e0,stroke:#e65100,stroke-width:2px
+
+    %% Link styling
+    linkStyle default stroke:#666,stroke-width:1
+    linkStyle 0,1,2 stroke:#01579b,stroke-width:2
+    linkStyle 3,4,5,6,7,8 stroke:#4a148c,stroke-width:1
+    linkStyle 9,10,11 stroke:#e65100,stroke-width:1,stroke-dasharray:3
+    linkStyle 12 stroke:#e65100,stroke-width:2
+
+    class A,B,C server
+    class AM,BM,CM monitor
+    class Lock lock
+```
+
 ## Components
 
 **PriceSync.PriceServer**
